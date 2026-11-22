@@ -84,9 +84,12 @@ def smoke(exe):
     res = os.path.join(OUT, "selftest.txt")
     if os.path.exists(res):
         os.remove(res)
-    out = subprocess.run([exe, "--selftest", res], capture_output=True, text=True, timeout=300)
-    text = open(res).read() if os.path.exists(res) else ""
-    print(text or out.stdout, out.stderr)
+    try:
+        out = subprocess.run([exe, "--selftest", res], capture_output=True, text=True, timeout=180)
+    except subprocess.TimeoutExpired as e:
+        out = e
+    text = open(res, encoding="utf-8").read() if os.path.exists(res) else "(no selftest output)"
+    print(text, getattr(out, "stdout", ""), getattr(out, "stderr", ""))
     os.path.exists(res) and os.remove(res)
     if "selftest ok" not in text:
         raise SystemExit("smoke test failed")

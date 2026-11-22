@@ -4,18 +4,34 @@ from .app import App, setup_logging
 
 
 def selftest():
-    """Used by the build: every native piece must import inside the packaged app."""
-    import ctranslate2, faster_whisper, numpy, sounddevice, webview  # noqa: F401
-    from .paths import resource
+    """Used by the build: every native piece must import inside the packaged app. Never raises (a windowed
+    build would show an error dialog and hang the build); the result or traceback goes to the given file."""
     import os
-    assert os.path.isfile(resource("static", "index.html")), "index.html missing"
-    msg = f"selftest ok {faster_whisper.__version__} {ctranslate2.__version__} {sounddevice.__version__}"
+    import traceback
     i = sys.argv.index("--selftest")
-    if len(sys.argv) > i + 1:          # windowed builds have no console: write to the given file
-        with open(sys.argv[i + 1], "w") as f:
+    out = sys.argv[i + 1] if len(sys.argv) > i + 1 else None
+    lines = []
+    ok = True
+    for mod in ("numpy", "ctranslate2", "tokenizers", "av", "faster_whisper", "sounddevice", "webview"):
+        try:
+            m = __import__(mod)
+            lines.append(f"{mod} {getattr(m, '__version__', '')}")
+        except BaseException:
+            ok = False
+            lines.append(f"FAILED {mod}:\n{traceback.format_exc()}")
+    try:
+        from .paths import resource
+        assert os.path.isfile(resource("static", "index.html")), "index.html missing"
+    except BaseException:
+        ok = False
+        lines.append("FAILED static:\n" + traceback.format_exc())
+    msg = ("selftest ok\n" if ok else "selftest FAILED\n") + "\n".join(lines)
+    if out:
+        with open(out, "w", encoding="utf-8") as f:
             f.write(msg)
     elif sys.stdout:
         print(msg, flush=True)
+    os._exit(0)
 
 
 def main():
