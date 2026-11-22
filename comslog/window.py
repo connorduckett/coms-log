@@ -123,10 +123,22 @@ class Shell:
         self.apply_window_settings(self.app.settings.all())
 
     def _closing(self):
+        # runs on the GUI thread while the window closes: must return quickly and never wait on that thread
         try:
-            w = self.win
-            if not getattr(self, "_maxed", False):
-                self.app.settings.update({"window": {"width": w.width, "height": w.height, "x": w.x, "y": w.y}})
+            if getattr(self, "_maxed", False):
+                return
+            if sys.platform == "darwin":
+                # pywebview's x/y/width getters can fall back to "run on the main thread and wait", which
+                # deadlocks here (we ARE the main thread) and leaves a spinning beachball; read the frame directly
+                from AppKit import NSScreen
+                f = self.win.native.frame()
+                main_h = NSScreen.screens()[0].frame().size.height
+                geo = {"width": int(f.size.width), "height": int(f.size.height), "x": int(f.origin.x),
+                       "y": int(main_h - f.origin.y - f.size.height)}
+            else:
+                w = self.win
+                geo = {"width": w.width, "height": w.height, "x": w.x, "y": w.y}
+            self.app.settings.update({"window": geo})
         except Exception as e:
             log.debug("save geometry: %s", e)
 

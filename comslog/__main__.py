@@ -1,3 +1,5 @@
+import logging
+import os
 import sys
 
 from .app import App, setup_logging
@@ -51,7 +53,13 @@ def main():
     else:
         from .window import Shell
         Shell(app).run()
-    app.stop()
+    # the window is gone: close the audio devices, but never let a stuck driver keep the process alive
+    import threading
+    t = threading.Thread(target=app.stop, daemon=True)
+    t.start()
+    t.join(3)
+    logging.shutdown()
+    os._exit(0)
 
 
 if __name__ == "__main__":
