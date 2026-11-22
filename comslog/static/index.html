@@ -178,6 +178,12 @@ textarea.in{height:auto;padding:8px 9px;resize:vertical;width:100%}
 .note{color:var(--muted);font-size:12px;margin:6px 0}
 code{background:rgba(255,255,255,.1);border-radius:5px;padding:1px 5px;font-size:12px}
 a{color:color-mix(in srgb,var(--tint) 60%,#fff)}
+.upd{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 12px;border-radius:14px;font-size:13px;font-weight:600;
+  background:linear-gradient(140deg,color-mix(in srgb,var(--tint) 40%,rgba(255,255,255,.1)),rgba(255,255,255,.05));border-color:color-mix(in srgb,var(--tint) 60%,transparent)}
+.upd[hidden]{display:none}
+.upd svg{width:16px;height:16px;flex:none}
+.upd span{flex:1;min-width:0}
+.upd .btn{padding:5px 11px}
 .toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%) translateY(10px);z-index:9;opacity:0;transition:.2s;pointer-events:none;font-size:13px;font-weight:600;padding:8px 14px;border-radius:12px}
 .toast.show{opacity:1;transform:translateX(-50%)}
 .viewer .local-only{display:none!important}
@@ -203,6 +209,10 @@ body:not(.desk) .desk-only{display:none!important}
     <button class="ib close desk-only" id="bClose" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
   </header>
 
+  <div class="upd glass local-only" id="upd" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+    <span id="updTxt"></span><button class="btn pri" id="updGo">Download</button><button class="ib" id="updX" title="Hide until the next version">×</button>
+  </div>
   <nav class="chips" id="chips"></nav>
 
   <label class="search glass">
@@ -229,7 +239,7 @@ body:not(.desk) .desk-only{display:none!important}
     <div class="tabs" id="tabs">
       <button class="tab on" data-s="ch">Channels</button><button class="tab" data-s="win">Window</button>
       <button class="tab" data-s="al">Alerts</button><button class="tab" data-s="sp">Speech</button>
-      <button class="tab" data-s="lg">Logs</button><button class="tab" data-s="net">Share</button>
+      <button class="tab" data-s="lg">Logs</button><button class="tab" data-s="net">More</button>
     </div>
     <div class="body">
       <section class="sec on" data-s="ch">
@@ -271,6 +281,7 @@ body:not(.desk) .desk-only{display:none!important}
       <section class="sec" data-s="net">
         <div class="row"><div class="l"><b>Share on the network</b><span>Let phones and other computers on this network follow the log in a browser (read-only).</span></div><label class="sw"><input type="checkbox" id="nShare"><i></i></label></div>
         <div id="nUrls" class="note"></div>
+        <div class="row"><div class="l"><b>Check for updates</b><span id="updState">Looks on GitHub for a newer version at start-up and every few hours. Nothing is installed automatically.</span></div><button class="btn" id="updNow">Check now</button><label class="sw"><input type="checkbox" id="nUpd"><i></i></label></div>
         <div class="row"><div class="l"><b>About</b><span id="about"></span></div></div>
       </section>
     </div>
@@ -304,9 +315,21 @@ try{ S.hidden = new Set(JSON.parse(localStorage.getItem("cl.hidden")||"[]")); }c
 /* ---------------- state ---------------- */
 async function loadState(){
   S.state = await api("/api/state");
-  applyLook(); paintChips(); paintComposer(); paintWin();
+  applyLook(); paintChips(); paintComposer(); paintWin(); paintUpdate();
   if($("#sheet").classList.contains("open")) paintSettings();
 }
+function paintUpdate(){
+  const u = S.state?.update; const el = $("#upd"); if(!u || !el) return;
+  let dismissed = ""; try{ dismissed = localStorage.getItem("cl.updDismissed") || ""; }catch(e){}
+  el.hidden = !(u.enabled && u.available && dismissed !== u.latest);
+  $("#updTxt").textContent = `Coms Log ${u.latest} is available (you have ${u.current})`;
+  const st = $("#updState");
+  if(st) st.textContent = !u.enabled ? "Off." : u.available ? `Version ${u.latest} is available.` : u.error ? `Couldn't check (${u.error.slice(0,80)}).` : u.checked ? `Up to date (${u.current}). Last checked ${new Date(u.checked*1000).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})}.` : "Checking…";
+}
+function openUpdate(){ const u = S.state?.update; if(!u) return; if(desk()) pywebview.api.open_url(u.url); else window.open(u.url, "_blank", "noopener"); }
+$("#updGo").onclick = openUpdate;
+$("#updX").onclick = () => { try{ localStorage.setItem("cl.updDismissed", S.state.update.latest); }catch(e){} $("#upd").hidden = true; };
+$("#updNow").onclick = async () => { await api("/api/check-updates", {}); $("#updState").textContent = "Checking…"; setTimeout(() => loadState(), 3000); };
 function applyLook(){
   const st = S.state; if(!st) return;
   document.documentElement.style.setProperty("--fs", (st.font_size||15)+"px");
@@ -518,7 +541,7 @@ function paintSettings(){
   $("#spModel").innerHTML = st.models.map(m => `<option value="${m.id}">${esc(m.label)} · ${m.size}</option>`).join("");
   $("#spModel").value = s.model; $("#spThreads").value = s.threads; $("#spPrompt").value = s.prompt || "";
   $("#lgKeep").value = s.keep_days; $("#lgDir").textContent = st.data_dir + (navigator.platform.includes("Win") ? "\\logs" : "/logs");
-  $("#nShare").checked = !!s.share_lan;
+  $("#nShare").checked = !!s.share_lan; $("#nUpd").checked = s.check_updates !== false; paintUpdate();
   $("#nUrls").innerHTML = s.share_lan ? (st.lan_urls.length ? "Open on a phone or another computer on this network:<br>" + st.lan_urls.map(u => `<code>${esc(u)}</code>`).join("<br>") + "<br>If it doesn't load, allow Coms Log through the firewall." : "No network address found.") : "";
   $("#about").innerHTML = `Coms Log ${esc(st.version)} · free and open source · <a href="https://github.com/connorduckett/coms-log" target="_blank" rel="noopener">github.com/connorduckett/coms-log</a>`;
 }
@@ -541,6 +564,7 @@ $("#spThreads").onchange = e => save({threads: Math.max(1, Math.min(16, +e.targe
 $("#spPrompt").onchange = e => save({prompt: e.target.value});
 $("#lgKeep").onchange = e => save({keep_days: Math.max(0, +e.target.value || 0)});
 $("#nShare").onchange = async e => { await save({share_lan: e.target.checked}); draft.share_lan = e.target.checked; await loadState(); draft = JSON.parse(JSON.stringify(S.state.settings)); paintSettings(); };
+$("#nUpd").onchange = async e => { await save({check_updates: e.target.checked}, true); setTimeout(() => loadState(), 3000); };
 $("#lgClear").onclick = async () => { const b = $("#lgClear"); if(!b.dataset.armed){ b.dataset.armed = 1; b.textContent = "Click again to clear"; setTimeout(() => { delete b.dataset.armed; b.textContent = "Clear"; }, 3500); return; }
   delete b.dataset.armed; b.textContent = "Clear"; await api("/api/clear", {}); S.items = []; S.unread = {}; paintChips(); paintFeed(true); toast("View cleared (logs kept)"); };
 $("#lgOpen").onclick = () => desk() && pywebview.api.open_logs();

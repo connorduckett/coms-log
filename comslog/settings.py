@@ -25,6 +25,7 @@ DEFAULTS = {
     "share_lan": False,
     "port": 8770,
     "keep_days": 30,
+    "check_updates": True,
     "window": {"width": 440, "height": 760, "x": None, "y": None},
 }
 

@@ -38,6 +38,14 @@ class Api:
         _reveal(data_dir())
         return True
 
+    def open_url(self, url):
+        """Only the project's own GitHub pages (the update link)."""
+        import webbrowser
+        if isinstance(url, str) and url.startswith("https://github.com/connorduckett/coms-log"):
+            webbrowser.open(url)
+            return True
+        return False
+
     def save_export(self, day, fmt):
         import webview
         fmt = "csv" if fmt == "csv" else "txt"

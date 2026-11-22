@@ -14,6 +14,7 @@ from .paths import data_dir, sub
 from .server import Server, lan_ips
 from .settings import COLORS, Settings
 from .transcribe import Transcriber
+from .updates import Updater
 
 log = logging.getLogger("comslog")
 
@@ -34,6 +35,7 @@ class App:
         self.tr.on_item = self._on_item
         self.audio = AudioMonitor(self.tr.submit)
         self.server = Server(self)
+        self.updates = Updater(self.settings)
         self.window = None           # set by window.py: object with alert(), apply_window_settings()
         self.alerts = []             # recent keyword alerts for the page (seq, words)
 
@@ -41,6 +43,7 @@ class App:
         self.tr.start()
         self.audio.apply(self.settings.get("channels"))
         self.server.start()
+        self.updates.start()
 
     # ------------------------------------------------------------------
     def devices(self):
@@ -56,13 +59,13 @@ class App:
                "share_lan": s["share_lan"], "port": self.server.port,
                "lan_urls": [f"http://{ip}:{self.server.port}/" for ip in lan_ips()] if s["share_lan"] else []}
         if full:
-            out.update({"settings": s, "models": MODELS, "colors": COLORS, "data_dir": data_dir(),
+            out.update({"update": self.updates.status(), "settings": s, "models": MODELS, "colors": COLORS, "data_dir": data_dir(),
                         "device_errors": self.audio.device_errors(), "audio_error": self.audio.error})
         return out
 
     def update_settings(self, b):
         allowed = {"channels", "keywords", "model", "language", "threads", "prompt", "on_top", "see_through",
-                   "opacity", "font_size", "tint", "chime", "flash_on_keyword", "share_lan", "keep_days", "window"}
+                   "opacity", "font_size", "tint", "chime", "flash_on_keyword", "share_lan", "keep_days", "window", "check_updates"}
         changes = {k: v for k, v in (b or {}).items() if k in allowed}
         if "channels" in changes:
             chans = []
@@ -91,6 +94,8 @@ class App:
                 self.audio.set_gate(c["id"], c["gate_db"])
         if before["model"] != after["model"] or before["threads"] != after["threads"]:
             self.tr.reload_model()
+        if after.get("check_updates") and not before.get("check_updates"):
+            self.updates.check_now()
         if before["share_lan"] != after["share_lan"]:
             self.server.restart()
         if self.window:

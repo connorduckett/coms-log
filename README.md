@@ -32,6 +32,11 @@ Get the latest from [Releases](https://github.com/connorduckett/coms-log/release
 
 The first start downloads the speech model (about 145 MB for "Base"), once.
 
+**Updating**: Coms Log checks GitHub for a new version when it starts (and every few hours) and shows a
+banner with a Download button. It never installs anything by itself: download the new zip and replace the old app.
+Your channels, settings, logs and speech model are kept (they live in the data folder, not in the app).
+Turn the check off under Settings → More.
+
 ## Setting it up
 
 1. Open **Settings → Channels** and **Add channel**.

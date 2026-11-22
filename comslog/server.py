@@ -180,6 +180,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/gate":
             app.set_gate(b.get("ch"), float(b.get("gate_db", -45)))
             return self._send(200, {"ok": True})
+        if path == "/api/check-updates":
+            app.updates.check_now()
+            return self._send(200, {"ok": True})
         if path == "/api/test-alert":
             app.alert("Test alert")
             return self._send(200, {"ok": True})
