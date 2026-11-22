@@ -29,6 +29,11 @@ class Api:
             w.maximize()
             self._shell._maxed = True
 
+    def drag_start(self):
+        """macOS: move the window natively while the mouse button is held (see Shell.mac_drag)."""
+        self._shell.mac_drag()
+        return True
+
     def open_logs(self):
         _reveal(self._shell.app.logs_dir())
         return True
@@ -82,6 +87,10 @@ class Shell:
         # only the bare title-bar background drags the window; buttons inside it must stay clickable
         # (on macOS a drag that starts on a button swallows the click)
         webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = True
+        if sys.platform == "darwin":
+            # pywebview's page-driven drag gets the flipped macOS coordinates wrong (the window jumps to the
+            # top of the screen); the page calls drag_start() instead and the window follows the real mouse
+            webview.settings["DRAG_REGION_SELECTOR"] = ".comslog-no-pywebview-drag"
         s = self.app.settings.all()
         geo = s.get("window") or {}
         mac = sys.platform == "darwin"
@@ -152,6 +161,39 @@ class Shell:
                 AppHelper.callAfter(lambda: nw.setAlphaValue_(a))
         except Exception as e:
             log.warning("opacity: %s", e)
+
+    def mac_drag(self):
+        """Follow the mouse in native screen coordinates until the button is released."""
+        if sys.platform != "darwin" or getattr(self, "_dragging", False):
+            return
+        try:
+            from AppKit import NSEvent
+            from Foundation import NSMakePoint
+            from PyObjCTools import AppHelper
+        except Exception as e:
+            log.warning("mac drag: %s", e)
+            return
+        nw = self.win.native
+        m0 = NSEvent.mouseLocation()
+        f0 = nw.frame().origin
+        self._dragging = True
+
+        def loop():
+            import time
+            try:
+                last = None
+                while NSEvent.pressedMouseButtons() & 1:
+                    m = NSEvent.mouseLocation()
+                    pos = (f0.x + m.x - m0.x, f0.y + m.y - m0.y)
+                    if pos != last:
+                        last = pos
+                        AppHelper.callAfter(nw.setFrameOrigin_, NSMakePoint(*pos))
+                    time.sleep(1 / 120)
+            except Exception as e:
+                log.warning("mac drag: %s", e)
+            finally:
+                self._dragging = False
+        threading.Thread(target=loop, daemon=True, name="mac-drag").start()
 
     def alert(self, text):
         """Keyword heard: flash the taskbar button / bounce the Dock icon (the page flashes itself too)."""

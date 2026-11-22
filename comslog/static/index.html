@@ -502,6 +502,11 @@ $("#bTop").onclick = () => save({on_top: !S.state.settings.on_top}, true);
 $("#bSee").onclick = () => save({see_through: !S.state.settings.see_through}, true);
 $("#bMin").onclick = () => desk() && pywebview.api.minimize();
 $("#bClose").onclick = () => desk() && pywebview.api.close();
+// macOS: the window is moved natively (pywebview's own drag is turned off there); only bare title-bar areas drag
+document.addEventListener("mousedown", e => {
+  if(e.button !== 0 || B.platform !== "darwin" || !desk()) return;
+  if(e.target.classList && e.target.classList.contains("pywebview-drag-region")) pywebview.api.drag_start();
+});
 $("#bar").addEventListener("dblclick", e => { if(!e.target.closest("button") && desk()) pywebview.api.toggle_maximize(); });
 $("#bSet").onclick = () => openSettings();
 

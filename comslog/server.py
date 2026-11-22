@@ -131,7 +131,9 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             with open(resource("static", "index.html"), encoding="utf-8") as f:
                 html = f.read()
-            boot = {"token": TOKEN if self.local else None, "version": __version__, "local": self.local}
+            import sys
+            boot = {"token": TOKEN if self.local else None, "version": __version__, "local": self.local,
+                    "platform": sys.platform}
             html = html.replace("/*BOOT*/", "window.BOOT=" + json.dumps(boot) + ";")
             return self._send(200, html, "text/html; charset=utf-8")
         if path.startswith("/static/"):
