@@ -71,6 +71,9 @@ class Shell:
 
     def run(self):
         import webview
+        # only the bare title-bar background drags the window; buttons inside it must stay clickable
+        # (on macOS a drag that starts on a button swallows the click)
+        webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = True
         s = self.app.settings.all()
         geo = s.get("window") or {}
         mac = sys.platform == "darwin"
