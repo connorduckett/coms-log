@@ -35,6 +35,7 @@ def pyinstaller():
             "--collect-all", "tokenizers",
             "--collect-all", "sounddevice",
             "--collect-all", "_sounddevice_data",  # bundled PortAudio (Windows / macOS wheels)
+            "--collect-data", "certifi",           # CA certificates for the update check (macOS builds have none)
             "--collect-submodules", "webview",
             "--exclude-module", "onnxruntime",     # only needed for Whisper's VAD filter, which isn't used
             "--exclude-module", "tkinter"]

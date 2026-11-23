@@ -16,6 +16,17 @@ API = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES = f"https://github.com/{REPO}/releases/latest"
 
 
+def _ssl_context():
+    """The packaged macOS app's Python can't see the Mac's own certificate store, so HTTPS fails with
+    CERTIFICATE_VERIFY_FAILED. Use the certifi bundle shipped inside the app; fall back to the system store."""
+    import ssl
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
+
+
 def _ver(s):
     return tuple(int(x) for x in re.findall(r"\d+", s or "")[:3]) or (0,)
 
@@ -46,7 +57,7 @@ class Updater:
         try:
             req = urllib.request.Request(API, headers={"Accept": "application/vnd.github+json",
                                                        "User-Agent": f"ComsLog/{__version__}"})
-            with urllib.request.urlopen(req, timeout=15) as r:
+            with urllib.request.urlopen(req, timeout=15, context=_ssl_context()) as r:
                 d = json.load(r)
             self.latest = {"version": (d.get("tag_name") or "").lstrip("v"), "url": d.get("html_url") or RELEASES,
                            "notes": (d.get("body") or "")[:2000], "published": d.get("published_at")}

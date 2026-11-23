@@ -27,6 +27,17 @@ def selftest():
     except BaseException:
         ok = False
         lines.append("FAILED static:\n" + traceback.format_exc())
+    try:   # the update check must be able to verify GitHub's certificate inside the packaged app
+        import urllib.request
+        from .updates import API, _ssl_context
+        req = urllib.request.Request(API, headers={"User-Agent": "ComsLog-selftest"})
+        with urllib.request.urlopen(req, timeout=20, context=_ssl_context()) as r:
+            lines.append(f"https ok ({r.status})")
+    except urllib.error.HTTPError as e:      # reached GitHub over verified TLS (e.g. rate limited): fine
+        lines.append(f"https ok (HTTP {e.code})")
+    except BaseException:
+        ok = False
+        lines.append("FAILED https:\n" + traceback.format_exc())
     msg = ("selftest ok\n" if ok else "selftest FAILED\n") + "\n".join(lines)
     if out:
         with open(out, "w", encoding="utf-8") as f:
