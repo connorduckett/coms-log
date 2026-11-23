@@ -54,7 +54,7 @@ class App:
 
     def state(self, full=True):
         s = self.settings.all()
-        out = {"version": __version__, "channels": s["channels"], "keywords": s["keywords"],
+        out = {"version": __version__, "channels": s["channels"], "groups": s.get("groups") or [], "keywords": s["keywords"],
                "font_size": s["font_size"], "tint": s["tint"], "engine": self.tr.status(),
                "share_lan": s["share_lan"], "port": self.server.port,
                "lan_urls": [f"http://{ip}:{self.server.port}/" for ip in lan_ips()] if s["share_lan"] else []}
@@ -64,7 +64,7 @@ class App:
         return out
 
     def update_settings(self, b):
-        allowed = {"channels", "keywords", "model", "language", "threads", "prompt", "on_top", "see_through",
+        allowed = {"channels", "groups", "keywords", "model", "language", "threads", "prompt", "on_top", "see_through",
                    "opacity", "font_size", "tint", "chime", "flash_on_keyword", "share_lan", "keep_days", "window", "check_updates"}
         changes = {k: v for k, v in (b or {}).items() if k in allowed}
         if "channels" in changes:
@@ -77,6 +77,17 @@ class App:
                               "gate_db": max(-80.0, min(-10.0, float(c.get("gate_db", -45)))),
                               "enabled": bool(c.get("enabled", True)), "hidden": bool(c.get("hidden", False))})
             changes["channels"] = chans
+        if "groups" in changes or "channels" in changes:
+            ids = {c["id"] for c in (changes.get("channels") or self.settings.get("channels"))}
+            groups = []
+            for i, g in enumerate((changes.get("groups") if "groups" in changes else self.settings.get("groups")) or []):
+                if not isinstance(g, dict):
+                    continue
+                gid = re.sub(r"[^A-Za-z0-9_-]", "", str(g.get("id") or "")) or "g-" + secrets.token_hex(3)
+                members = [str(x) for x in (g.get("channels") or []) if str(x) in ids]
+                groups.append({"id": gid, "name": str(g.get("name") or f"Group {i + 1}")[:40],
+                               "channels": list(dict.fromkeys(members))})
+            changes["groups"] = groups[:20]
         if "keywords" in changes:
             kws = changes["keywords"]
             if isinstance(kws, str):

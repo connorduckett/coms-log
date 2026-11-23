@@ -74,6 +74,30 @@ body.mac{background:rgba(11,16,32,.42)}
 .chip .badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--hot);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
 .chip.err .cd{background:transparent;border:2px solid var(--c)}
 .chip.muted{opacity:.45}
+.chip .stack{display:flex}.chip .stack i{width:10px;height:10px;border-radius:50%;background:var(--c);margin-left:-4px;box-shadow:0 0 0 1.5px rgba(11,16,32,.85)}
+.chip .stack i:first-child{margin-left:0}
+.chip.grp{font-weight:650}
+.chip.grp.talk .stack{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
+.chip.add{color:var(--muted);border-style:dashed;padding-inline:10px}
+.chips .vsep{flex:none;width:1px;align-self:stretch;margin:4px 2px;background:var(--edge-soft)}
+.gcard{border:1px solid var(--edge-soft);border-radius:14px;padding:10px;margin-bottom:10px;background:rgba(255,255,255,.04)}
+.gcard .r1{display:flex;gap:6px;align-items:center}.gcard .r1 .in{flex:1}
+.gmem{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.gmem button{appearance:none;font:inherit;font-size:12px;color:var(--muted);background:transparent;border:1px dashed var(--edge-soft);border-radius:999px;padding:4px 10px 4px 8px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.gmem button i{width:9px;height:9px;border-radius:50%;background:var(--c);opacity:.5}
+.gmem button.on{color:var(--text);border-style:solid;border-color:color-mix(in srgb,var(--c) 70%,transparent);background:color-mix(in srgb,var(--c) 18%,transparent)}
+.gmem button.on i{opacity:1}
+h3.sub{font-size:13px;font-weight:650;margin:18px 0 4px;color:var(--text)}
+/* macOS-style window buttons */
+.lights{display:none;gap:8px;align-items:center;padding:0 6px 0 2px;flex:none}
+.lights button{appearance:none;border:0;padding:0;width:12px;height:12px;border-radius:50%;cursor:pointer;display:grid;place-items:center;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.25)}
+.lights svg{width:8px;height:8px;opacity:0;stroke:rgba(0,0,0,.6);stroke-width:2.6;fill:none;stroke-linecap:round}
+.lights:hover svg{opacity:1}
+.lights .lc{background:#ff5f57}.lights .lm{background:#febc2e}.lights .lz{background:#28c840}
+body.mac.desk .lights{display:flex}
+body.mac.desk #bMin,body.mac.desk #bClose,body.mac.desk .bar .sep{display:none}
+body.mac.desk .bar{padding-left:10px}
 
 /* search */
 .search{display:flex;align-items:center;gap:8px;padding:0 10px;height:38px;border-radius:13px}
@@ -195,6 +219,7 @@ body:not(.desk) .desk-only{display:none!important}
 
 <div class="app">
   <header class="bar glass pywebview-drag-region" id="bar">
+    <div class="lights"><button class="lc" id="lClose" title="Close"><svg viewBox="0 0 10 10"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg></button><button class="lm" id="lMin" title="Minimize"><svg viewBox="0 0 10 10"><path d="M2 5h6"/></svg></button><button class="lz" id="lZoom" title="Zoom"><svg viewBox="0 0 10 10"><path d="M3 3h4v4"/><path d="M7 3 3 7"/></svg></button></div>
     <div class="brand pywebview-drag-region">
       <svg width="22" height="22" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9fc2ff"/><stop offset="1" stop-color="#c79bff"/></linearGradient></defs><rect x="4" y="4" width="56" height="56" rx="16" fill="url(#lg)" opacity=".9"/><path d="M18 24h28M18 32h20M18 40h24" stroke="#0b1020" stroke-width="5" stroke-linecap="round"/></svg>
       <span class="pywebview-drag-region">Coms Log</span>
@@ -247,6 +272,10 @@ body:not(.desk) .desk-only{display:none!important}
         <div id="chList"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="chAdd">+ Add channel</button><button class="btn" id="devRefresh">Refresh devices</button></div>
         <p class="note" id="devNote"></p>
+        <h3 class="sub" id="grpHead">Groups</h3>
+        <p class="note">Show several channels together in one view, like &ldquo;Production&rdquo; for Director + Cameras. Groups appear next to All above the log.</p>
+        <div id="grpList"></div>
+        <button class="btn" id="grpAdd">+ Add group</button>
       </section>
       <section class="sec" data-s="win">
         <div class="row desk-only"><div class="l"><b>Float on top</b><span>Stay above other apps.</span></div><label class="sw"><input type="checkbox" id="wTop"><i></i></label></div>
@@ -309,7 +338,7 @@ async function api(path, body){
 }
 function toast(t){ const e = $("#toast"); e.textContent = t; e.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove("show"), 2200); }
 const desk = () => !!(window.pywebview && window.pywebview.api);
-window.addEventListener("pywebviewready", () => { document.body.classList.add("desk"); if(/mac/i.test(navigator.userAgent) && !/Windows/.test(navigator.userAgent)) document.body.classList.add("mac"); paintWin(); });
+window.addEventListener("pywebviewready", () => { document.body.classList.add("desk"); if(B.platform === "darwin" || (/mac/i.test(navigator.userAgent) && !/Windows/.test(navigator.userAgent))) document.body.classList.add("mac"); paintWin(); });
 try{ S.hidden = new Set(JSON.parse(localStorage.getItem("cl.hidden")||"[]")); }catch(e){}
 
 /* ---------------- state ---------------- */
@@ -342,12 +371,36 @@ function shift(hex){ // a companion hue for the backdrop
 }
 const chans = () => (S.state?.channels || []);
 const chById = id => chans().find(c => c.id === id);
+const groups = () => (S.state?.groups || []);
+const grpById = id => groups().find(g => g.id === id);
+const curGroup = () => S.filter && S.filter.startsWith("g:") ? grpById(S.filter.slice(2)) : null;
+// is a line from channel `ch` shown in the current view (All, one group, or one channel)?
+function inView(ch){
+  if(!S.filter) return !S.hidden.has(ch);
+  if(S.filter.startsWith("g:")){ const g = curGroup(); return !!g && g.channels.includes(ch); }
+  return S.filter === ch;
+}
+function clearUnread(){
+  if(!S.filter) S.unread = {};
+  else if(S.filter.startsWith("g:")) (curGroup()?.channels || []).forEach(id => delete S.unread[id]);
+  else delete S.unread[S.filter];
+}
+try{ S.filter = localStorage.getItem("cl.view") || null; }catch(e){}
 
 /* ---------------- chips ---------------- */
 function paintChips(){
   const el = $("#chips"); const cs = chans().filter(c => c.enabled !== false);
   const all = `<button class="chip ${S.filter===null?"sel":""}" data-id="" style="--c:#fff"><span class="cd" style="background:linear-gradient(135deg,#9fc2ff,#c79bff)"></span>All${badge(Object.values(S.unread).reduce((a,b)=>a+b,0))}</button>`;
-  el.innerHTML = all + cs.map(c => {
+  if(S.filter && S.state && (S.filter.startsWith("g:") ? !curGroup() : !chById(S.filter))) S.filter = null;
+  const gs = groups().map(g => {
+    const mem = g.channels.map(chById).filter(Boolean);
+    const n = mem.reduce((a, c) => a + (S.unread[c.id] || 0), 0);
+    const talk = mem.some(c => S.levels[c.id]?.speaking);
+    const dots = mem.slice(0, 5).map(c => `<i style="--c:${esc(c.color)}"></i>`).join("") || `<i style="--c:#888"></i>`;
+    return `<button class="chip grp ${S.filter==="g:"+g.id?"sel":""} ${talk?"talk":""}" data-id="g:${esc(g.id)}" style="--c:${esc(mem[0]?.color || "#fff")}" title="${esc(mem.map(c => c.name).join(", ") || "No channels yet")}"><span class="stack">${dots}</span>${esc(g.name)}${badge(n)}</button>`;
+  }).join("");
+  const add = B.local && cs.length > 1 && !groups().length ? `<button class="chip add" data-add="1" title="Group channels to see them together">+ Group</button>` : "";
+  el.innerHTML = all + gs + add + (gs || add ? `<span class="vsep"></span>` : "") + cs.map(c => {
     const lv = S.levels[c.id] || {};
     return `<button class="chip ${S.filter===c.id?"sel":""} ${lv.speaking?"talk":""} ${lv.error?"err":""} ${S.hidden.has(c.id)?"muted":""}" data-id="${esc(c.id)}" style="--c:${esc(c.color)}" title="${esc(lv.error || (S.hidden.has(c.id) ? "Hidden from All (right-click to show)" : "Right-click to hide from All"))}"><span class="cd"></span>${esc(c.name)}${badge(S.unread[c.id])}</button>`;
   }).join("");
@@ -355,12 +408,13 @@ function paintChips(){
 const badge = n => n ? `<span class="badge">${n>99?"99+":n}</span>` : "";
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest(".chip"); if(!b) return;
+  if(b.dataset.add){ openSettings("ch", true); return; }
   S.filter = b.dataset.id || null;
-  if(S.filter) delete S.unread[S.filter]; else S.unread = {};
-  paintChips(); paintFeed(true);
+  try{ S.filter ? localStorage.setItem("cl.view", S.filter) : localStorage.removeItem("cl.view"); }catch(_){}
+  clearUnread(); paintChips(); paintComposer(); paintFeed(true);
 });
 $("#chips").addEventListener("contextmenu", e => {
-  const b = e.target.closest(".chip"); if(!b || !b.dataset.id) return; e.preventDefault();
+  const b = e.target.closest(".chip"); if(!b || !b.dataset.id || b.dataset.id.startsWith("g:")) return; e.preventDefault();
   const id = b.dataset.id; S.hidden.has(id) ? S.hidden.delete(id) : S.hidden.add(id);
   try{ localStorage.setItem("cl.hidden", JSON.stringify([...S.hidden])); }catch(_){}
   toast(S.hidden.has(id) ? `${chById(id)?.name} hidden from All` : `${chById(id)?.name} shown in All`);
@@ -384,8 +438,7 @@ function msgHTML(it, q){
 function visible(){
   const q = $("#q").value.trim().toLowerCase();
   let list = S.results || S.items;
-  if(S.filter) list = list.filter(i => i.ch === S.filter);
-  else if(!S.results) list = list.filter(i => !S.hidden.has(i.ch));
+  if(S.filter || !S.results) list = list.filter(i => inView(i.ch));
   if(q && !S.results) list = list.filter(i => i.text.toLowerCase().includes(q) || (i.name||"").toLowerCase().includes(q));
   return list;
 }
@@ -412,9 +465,9 @@ function engineEmpty(){
   const live = chans().filter(c => c.enabled !== false && S.levels[c.id] && !S.levels[c.id].error).length;
   return `<b>Listening…</b>Lines appear here a moment after someone stops talking.${live ? "" : "<br><br>No channel is receiving audio yet."}`;
 }
-function ghosts(){ if(S.results || $("#q").value.trim()) return []; return chans().filter(c => S.levels[c.id]?.speaking && (S.filter ? S.filter === c.id : !S.hidden.has(c.id))); }
+function ghosts(){ if(S.results || $("#q").value.trim()) return []; return chans().filter(c => S.levels[c.id]?.speaking && inView(c.id)); }
 function dayLabel(d){ const t = dayKey(Date.now()/1000), y = dayKey(Date.now()/1000 - 86400); if(d === t) return "Today"; if(d === y) return "Yesterday"; return new Date(d+"T12:00").toLocaleDateString([], {weekday:"short", month:"short", day:"numeric"}); }
-$("#feed").addEventListener("scroll", () => { const el = $("#feed"); S.atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40; $("#jump").classList.toggle("show", !S.atBottom); if(S.atBottom){ if(S.filter) delete S.unread[S.filter]; else S.unread = {}; paintChips(); } });
+$("#feed").addEventListener("scroll", () => { const el = $("#feed"); S.atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40; $("#jump").classList.toggle("show", !S.atBottom); if(S.atBottom){ clearUnread(); paintChips(); } });
 $("#jumpBtn").onclick = () => { S.atBottom = true; paintFeed(true); $("#jump").classList.remove("show"); };
 
 /* ---------------- search ---------------- */
@@ -451,7 +504,7 @@ async function poll(){
       for(const it of r.items){
         S.items.push(it); changed = true;
         if(!first){
-          const shown = S.filter ? S.filter === it.ch : !S.hidden.has(it.ch);
+          const shown = inView(it.ch);
           if(!shown || !S.atBottom) S.unread[it.ch] = (S.unread[it.ch]||0) + 1;
           if(it.hits?.length && it.kind === "voice"){ if(S.state?.settings ? S.state.settings.chime : true) chime(); flash(); }
         }
@@ -480,7 +533,7 @@ function paintEngine(e){
 function paintComposer(){
   const sel = $("#compCh"); const v = sel.value;
   sel.innerHTML = `<option value="">Note</option>` + chans().map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
-  sel.value = v && chById(v) ? v : (S.filter || "");
+  sel.value = v && chById(v) ? v : (S.filter && chById(S.filter) ? S.filter : "");
 }
 $("#comp").addEventListener("submit", async e => {
   e.preventDefault(); const tx = $("#compTx").value.trim(); if(!tx) return;
@@ -502,6 +555,9 @@ $("#bTop").onclick = () => save({on_top: !S.state.settings.on_top}, true);
 $("#bSee").onclick = () => save({see_through: !S.state.settings.see_through}, true);
 $("#bMin").onclick = () => desk() && pywebview.api.minimize();
 $("#bClose").onclick = () => desk() && pywebview.api.close();
+$("#lClose").onclick = () => desk() && pywebview.api.close();
+$("#lMin").onclick = () => desk() && pywebview.api.minimize();
+$("#lZoom").onclick = () => desk() && pywebview.api.toggle_maximize();
 // macOS: the window is moved natively (pywebview's own drag is turned off there); only bare title-bar areas drag
 document.addEventListener("mousedown", e => {
   if(e.button !== 0 || B.platform !== "darwin" || !desk()) return;
@@ -512,11 +568,13 @@ $("#bSet").onclick = () => openSettings();
 
 /* ---------------- settings ---------------- */
 let draft = null;
-async function openSettings(tab){
+async function openSettings(tab, toGroups){
   await loadState();
   draft = JSON.parse(JSON.stringify(S.state.settings));
+  draft.groups = draft.groups || [];
   $("#sheet").classList.add("open");
   if(tab) selTab(tab);
+  if(toGroups){ if(!draft.groups.length) newGroup(); setTimeout(() => $("#grpHead").scrollIntoView({behavior:"smooth", block:"start"}), 50); }
   paintSettings(); loadDevices(); loadDays();
 }
 const closeSheet = () => { $("#sheet").classList.remove("open"); paintFeed(true); };
@@ -604,7 +662,37 @@ function paintChannels(){
     <div class="meter"><i></i><b style="left:${(c.gate_db + 80) / 80 * 100}%"></b></div>
     <div class="r3">Gate <input type="range" data-f="gate_db" min="-80" max="-10" step="1" value="${c.gate_db}"><span class="gv">${c.gate_db} dB</span><span class="lvl"></span></div>
   </div>`).join("") || `<p class="note">No channels yet.</p>`;
+  paintGroups();
 }
+function paintGroups(){
+  if(!draft) return;
+  const cs = draft.channels.filter(c => c.id);
+  $("#grpList").innerHTML = (draft.groups || []).map((g, i) => `<div class="gcard" data-i="${i}">
+    <div class="r1"><input class="in" data-g="name" value="${esc(g.name)}" placeholder="Group name (e.g. Production)">
+      <button class="ib" data-gact="del" title="Remove group"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>
+    <div class="gmem">${cs.map(c => `<button class="${g.channels.includes(c.id) ? "on" : ""}" data-ch="${esc(c.id)}" style="--c:${esc(c.color)}"><i></i>${esc(c.name)}</button>`).join("") || `<span class="note">Add channels first.</span>`}</div>
+  </div>`).join("");
+}
+let gT;
+function saveGroups(delay){ clearTimeout(gT); gT = setTimeout(() => save({groups: draft.groups}, true).then(() => { draft.groups = JSON.parse(JSON.stringify(S.state.settings.groups || [])); paintGroups(); }), delay ?? 300); }
+function newGroup(){
+  draft.groups = draft.groups || [];
+  draft.groups.push({id:"", name:["Production","Tech","Stage","Front of house"][draft.groups.length] || `Group ${draft.groups.length+1}`, channels:[]});
+  paintGroups(); saveGroups(0);
+}
+$("#grpAdd").onclick = newGroup;
+$("#grpList").addEventListener("click", e => {
+  const card = e.target.closest(".gcard"); if(!card) return; const g = draft.groups[+card.dataset.i];
+  const m = e.target.closest("[data-ch]");
+  if(m){ const id = m.dataset.ch; g.channels = g.channels.includes(id) ? g.channels.filter(x => x !== id) : [...g.channels, id]; m.classList.toggle("on"); saveGroups(0); return; }
+  const del = e.target.closest("[data-gact=del]");
+  if(del){ if(!del.dataset.armed){ del.dataset.armed = 1; del.style.color = "#ff453a"; del.title = "Click again to remove"; setTimeout(() => { delete del.dataset.armed; del.style.color = ""; }, 3000); return; }
+    draft.groups.splice(+card.dataset.i, 1); paintGroups(); saveGroups(0); }
+});
+$("#grpList").addEventListener("input", e => {
+  const card = e.target.closest(".gcard"); if(!card || e.target.dataset.g !== "name") return;
+  draft.groups[+card.dataset.i].name = e.target.value; saveGroups(700);
+});
 function paintMeters(){
   $$("#chList .chcard").forEach(card => {
     const c = draft?.channels[+card.dataset.i]; if(!c) return; const lv = S.levels[c.id];
@@ -614,7 +702,7 @@ function paintMeters(){
   });
 }
 let chT;
-function saveChannels(delay){ clearTimeout(chT); chT = setTimeout(() => save({channels: draft.channels}, true).then(() => { draft.channels = JSON.parse(JSON.stringify(S.state.settings.channels)); }), delay ?? 300); }
+function saveChannels(delay){ clearTimeout(chT); chT = setTimeout(() => save({channels: draft.channels}, true).then(() => { draft.channels = JSON.parse(JSON.stringify(S.state.settings.channels)); draft.groups = JSON.parse(JSON.stringify(S.state.settings.groups || [])); paintGroups(); }), delay ?? 300); }
 $("#chAdd").onclick = () => {
   const i = draft.channels.length; const firstDev = S.devices[0]?.key || "";
   draft.channels.push({id:"", name:["Director","Cameras","Audio","Lighting","Stage","Graphics"][i] || `Channel ${i+1}`, color:S.state.colors[i % S.state.colors.length], device:draft.channels.at(-1)?.device || firstDev, channel:(draft.channels.at(-1)?.channel || 0) + 1, gate_db:-45, enabled:true});

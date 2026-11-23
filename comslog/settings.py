@@ -10,6 +10,7 @@ COLORS = ["#5ac8fa", "#ff9f0a", "#30d158", "#ff375f", "#bf5af2", "#ffd60a", "#64
 
 DEFAULTS = {
     "channels": [],              # [{"id","name","color","device","channel","gate_db","enabled"}]
+    "groups": [],                # [{"id","name","channels":[channel ids]}] shown together in one view
     "keywords": [],              # highlighted + alert (flash window, chime)
     "model": "base.en",          # tiny.en / base.en / small.en / medium.en (or multilingual: base, small ...)
     "language": "en",

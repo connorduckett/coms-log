@@ -10,6 +10,7 @@ Made for church production teams. Free and open source (MIT).
 
 - **Any input**: USB interfaces, Dante Virtual Soundcard / Dante Via, MADI, a laptop mic. Each channel is one input.
 - **Live transcript**: lines appear a moment after someone stops talking. A "…" bubble shows who is talking right now.
+- **Groups**: put channels together (say Director + Cameras as "Production") and watch them in one view, next to All and the single channels.
 - **Floats on top** of ProPresenter, your switcher software or anything else, and can be **see-through**
   (25-100 % opacity) so it never fully covers what's under it.
 - **Liquid-glass look** with a choice of tint colours and text sizes.
