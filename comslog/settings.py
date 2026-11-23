@@ -24,6 +24,9 @@ DEFAULTS = {
     "chime": True,
     "flash_on_keyword": True,
     "share_lan": False,
+    "source": "local",           # "local" = listen to this computer's audio; "remote" = follow a shared Coms Log
+    "remote_url": "",            # http://host:port/ of the Coms Log being followed
+    "remote_name": "",
     "port": 8770,
     "keep_days": 30,
     "check_updates": True,

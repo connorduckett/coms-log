@@ -17,6 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import __version__
 from .paths import resource
+from . import remote
 
 log = logging.getLogger("comslog.web")
 TOKEN = secrets.token_urlsafe(24)
@@ -44,10 +45,12 @@ class Server:
         self.app = app
         self.httpd = None
         self.port = None
+        self.responder = remote.Responder(app)
 
     def start(self):
         s = self.app.settings
-        host = "0.0.0.0" if s.get("share_lan") else "127.0.0.1"
+        share = bool(s.get("share_lan")) and not self.app.following
+        host = "0.0.0.0" if share else "127.0.0.1"
         want = int(s.get("port") or 8770)
         app = self.app
 
@@ -64,6 +67,10 @@ class Server:
         self.port = self.httpd.server_address[1]
         threading.Thread(target=self.httpd.serve_forever, daemon=True, name="web").start()
         log.info("serving on %s:%d", host, self.port)
+        if share:
+            self.responder.start(self.port)      # lets other Coms Logs find this one by name
+        else:
+            self.responder.stop()
 
     def restart(self):
         old = self.httpd
@@ -145,6 +152,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(404, {"error": "not found"})
             with open(fp, "rb") as f:
                 return self._send(200, f.read(), mimetypes.guess_type(fp)[0] or "application/octet-stream")
+        if app.following and self.local and path in ("/api/feed", "/api/days", "/api/day", "/api/search", "/api/export"):
+            return self._proxy(path, u.query)
         if path == "/api/state":
             return self._send(200, app.state(full=self.local))
         if path == "/api/feed":
@@ -168,6 +177,20 @@ class Handler(BaseHTTPRequestHandler):
                               {"Content-Disposition": f'attachment; filename="coms-log-{day}.{fmt}"'})
         return self._send(404, {"error": "not found"})
 
+    def _proxy(self, path, query):
+        """Following another Coms Log: pass read-only requests through to it."""
+        try:
+            st, body, hdr = remote.fetch(self.app.settings.get("remote_url"), path + ("?" + query if query else ""))
+        except Exception as e:
+            return self._send(502, {"error": f"Lost connection to {self.app.settings.get('remote_name') or 'the shared Coms Log'} ({remote._short(e)})"})
+        if path == "/api/feed" and st == 200:
+            try:
+                self.app.remote_items(json.loads(body).get("items"))
+            except ValueError:
+                pass
+        extra = {"Content-Disposition": hdr["Content-Disposition"]} if hdr.get("Content-Disposition") else None
+        return self._send(st, body, hdr.get("Content-Type") or "application/json; charset=utf-8", extra)
+
     def _post(self, b):
         app = self.app
         path = urllib.parse.urlparse(self.path).path
@@ -185,6 +208,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/check-updates":
             app.updates.check_now()
             return self._send(200, {"ok": True})
+        if path == "/api/discover":
+            return self._send(200, {"found": remote.discover()})
+        if path == "/api/probe":
+            url = remote.normalize_url(b.get("url"))
+            if not url:
+                return self._send(200, {"ok": False, "error": "That doesn't look like an address. Try 192.168.1.20 or 192.168.1.20:8770"})
+            return self._send(200, dict(remote.probe(url), url=url))
         if path == "/api/test-alert":
             app.alert("Test alert")
             return self._send(200, {"ok": True})

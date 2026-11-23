@@ -98,6 +98,11 @@ class Transcriber:
 
     def _run(self):
         while True:
+            if self.settings.get("source", "local") == "remote":     # following another Coms Log: no engine here
+                self.state, self.error = "off (following another Coms Log)", None
+                self.model = None                    # free the memory; reloads when listening here again
+                time.sleep(1)
+                continue
             if self.model is None or self._reload.is_set():
                 self._reload.clear()
                 self.model = None

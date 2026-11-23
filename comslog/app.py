@@ -4,6 +4,7 @@ import os
 
 os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+import json
 import re
 import secrets
 import time
@@ -11,6 +12,7 @@ import time
 from . import __version__
 from .audio import AudioMonitor, list_devices
 from .paths import data_dir, sub
+from . import remote
 from .server import Server, lan_ips
 from .settings import COLORS, Settings
 from .transcribe import Transcriber
@@ -38,10 +40,12 @@ class App:
         self.updates = Updater(self.settings)
         self.window = None           # set by window.py: object with alert(), apply_window_settings()
         self.alerts = []             # recent keyword alerts for the page (seq, words)
+        self._rstate = None          # last good /api/state from the Coms Log being followed
+        self._rerror = None
 
     def start(self):
         self.tr.start()
-        self.audio.apply(self.settings.get("channels"))
+        self.audio.apply([] if self.following else self.settings.get("channels"))
         self.server.start()
         self.updates.start()
 
@@ -52,9 +56,30 @@ class App:
         except Exception as e:
             return {"devices": [], "error": str(e)}
 
+    @property
+    def following(self):
+        return self.settings.get("source") == "remote" and bool(self.settings.get("remote_url"))
+
+    def remote_state(self):
+        try:
+            st, body, _ = remote.fetch(self.settings.get("remote_url"), "/api/state", timeout=3)
+            if st == 200:
+                self._rstate, self._rerror = json.loads(body), None
+            else:
+                self._rerror = f"HTTP {st}"
+        except Exception as e:
+            self._rerror = remote._short(e)
+        return self._rstate
+
     def state(self, full=True):
         s = self.settings.all()
-        out = {"version": __version__, "channels": s["channels"], "groups": s.get("groups") or [], "keywords": s["keywords"],
+        if self.following and full:
+            r = self.remote_state() or {}
+            s = dict(s, channels=r.get("channels") or [], groups=r.get("groups") or [], keywords=r.get("keywords") or [])
+        out = {"version": __version__, "host": remote.host_name(), "source": "remote" if self.following else "local",
+               "remote": {"url": s.get("remote_url"), "name": s.get("remote_name"), "ok": self._rerror is None,
+                          "error": self._rerror} if self.following else None,
+               "channels": s["channels"], "groups": s.get("groups") or [], "keywords": s["keywords"],
                "font_size": s["font_size"], "tint": s["tint"], "engine": self.tr.status(),
                "share_lan": s["share_lan"], "port": self.server.port,
                "lan_urls": [f"http://{ip}:{self.server.port}/" for ip in lan_ips()] if s["share_lan"] else []}
@@ -65,7 +90,8 @@ class App:
 
     def update_settings(self, b):
         allowed = {"channels", "groups", "keywords", "model", "language", "threads", "prompt", "on_top", "see_through",
-                   "opacity", "font_size", "tint", "chime", "flash_on_keyword", "share_lan", "keep_days", "window", "check_updates"}
+                   "opacity", "font_size", "tint", "chime", "flash_on_keyword", "share_lan", "keep_days", "window", "check_updates",
+                   "source", "remote_url", "remote_name"}
         changes = {k: v for k, v in (b or {}).items() if k in allowed}
         if "channels" in changes:
             chans = []
@@ -93,13 +119,24 @@ class App:
             if isinstance(kws, str):
                 kws = kws.split(",")
             changes["keywords"] = [k.strip() for k in kws if k and k.strip()][:50]
+        if "source" in changes:
+            changes["source"] = "remote" if changes["source"] == "remote" else "local"
+        if "remote_url" in changes:
+            changes["remote_url"] = remote.normalize_url(changes["remote_url"]) or ""
+        if "remote_name" in changes:
+            changes["remote_name"] = str(changes["remote_name"] or "")[:60]
+        if self.following or changes.get("source") == "remote":
+            changes.pop("channels", None)            # the followed computer owns these
+            changes.pop("groups", None)
+            changes.pop("keywords", None)
         if "opacity" in changes:
             changes["opacity"] = max(0.25, min(1.0, float(changes["opacity"])))
         before = self.settings.all()
         after = self.settings.update(changes)
-        audio_keys = lambda s: [(c["id"], c["device"], c["channel"], c["enabled"]) for c in s["channels"]]
+        audio_keys = lambda s: ([] if s.get("source") == "remote" and s.get("remote_url") else
+                                [(c["id"], c["device"], c["channel"], c["enabled"]) for c in s["channels"]])
         if audio_keys(before) != audio_keys(after):
-            self.audio.apply(after["channels"])
+            self.audio.apply([] if self.following else after["channels"])
         else:
             for c in after["channels"]:
                 self.audio.set_gate(c["id"], c["gate_db"])
@@ -107,7 +144,9 @@ class App:
             self.tr.reload_model()
         if after.get("check_updates") and not before.get("check_updates"):
             self.updates.check_now()
-        if before["share_lan"] != after["share_lan"]:
+        if (before["share_lan"], before.get("source"), before.get("remote_url")) != \
+                (after["share_lan"], after.get("source"), after.get("remote_url")):
+            self._rstate, self._rerror = None, None
             self.server.restart()
         if self.window:
             self.window.apply_window_settings(after)
@@ -129,6 +168,11 @@ class App:
         return self.tr.add({"ch": ch["id"] if ch else "note", "name": ch["name"] if ch else "Note",
                             "color": ch["color"] if ch else "#ffffff", "ts": round(time.time(), 2),
                             "text": text, "kind": "typed"})
+
+    def remote_items(self, items):
+        """Lines fetched from the followed Coms Log: flash the Dock/taskbar for keyword hits, like local ones."""
+        for it in items or []:
+            self._on_item(it)
 
     def _on_item(self, item):
         if item.get("hits") and item.get("kind") == "voice":

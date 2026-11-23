@@ -88,6 +88,16 @@ body.mac{background:rgba(11,16,32,.42)}
 .gmem button i{width:9px;height:9px;border-radius:50%;background:var(--c);opacity:.5}
 .gmem button.on{color:var(--text);border-style:solid;border-color:color-mix(in srgb,var(--c) 70%,transparent);background:color-mix(in srgb,var(--c) 18%,transparent)}
 .gmem button.on i{opacity:1}
+.srcopt{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--edge-soft);border-radius:14px;margin-bottom:8px;cursor:pointer;background:rgba(255,255,255,.03)}
+.srcopt input{margin-top:3px;accent-color:var(--tint);width:16px;height:16px;flex:none}
+.srcopt b{display:block;font-size:14px}.srcopt span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.srcopt.on{border-color:color-mix(in srgb,var(--tint) 70%,transparent);background:color-mix(in srgb,var(--tint) 14%,transparent)}
+.found{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--edge-soft);border-radius:12px;margin-bottom:6px;background:rgba(255,255,255,.04)}
+.found .l{flex:1;min-width:0}.found b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.found span{display:block;color:var(--muted);font-size:12px}
+.found.cur{border-color:color-mix(in srgb,#30d158 60%,transparent)}
+body.remote .local-src{display:none!important}
+body:not(.remote) .remote-src{display:none!important}
 h3.sub{font-size:13px;font-weight:650;margin:18px 0 4px;color:var(--text)}
 /* macOS-style window buttons */
 .lights{display:none;gap:8px;align-items:center;padding:0 6px 0 2px;flex:none}
@@ -251,7 +261,7 @@ body:not(.desk) .desk-only{display:none!important}
     <div class="jump" id="jump"><button class="pill" id="jumpBtn">↓ Latest</button></div>
   </main>
 
-  <form class="comp glass local-only" id="comp" autocomplete="off">
+  <form class="comp glass local-only local-src" id="comp" autocomplete="off">
     <select id="compCh" title="Log this note on a channel"></select>
     <input id="compTx" placeholder="Type a note…" maxlength="500">
     <button class="ib" type="submit" title="Add note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></button>
@@ -262,11 +272,21 @@ body:not(.desk) .desk-only{display:none!important}
   <div class="panel glass">
     <div class="top pywebview-drag-region"><h2 class="pywebview-drag-region">Settings</h2><button class="ib" id="sClose" title="Close settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg></button></div>
     <div class="tabs" id="tabs">
-      <button class="tab on" data-s="ch">Channels</button><button class="tab" data-s="win">Window</button>
-      <button class="tab" data-s="al">Alerts</button><button class="tab" data-s="sp">Speech</button>
+      <button class="tab" data-s="src">Source</button><button class="tab on local-src" data-s="ch">Channels</button><button class="tab" data-s="win">Window</button>
+      <button class="tab" data-s="al">Alerts</button><button class="tab local-src" data-s="sp">Speech</button>
       <button class="tab" data-s="lg">Logs</button><button class="tab" data-s="net">More</button>
     </div>
     <div class="body">
+      <section class="sec" data-s="src">
+        <label class="srcopt" id="optLocal"><input type="radio" name="src" value="local"><div><b>Listen on this computer</b><span>Transcribe this computer's audio inputs. Set them up under Channels.</span></div></label>
+        <label class="srcopt" id="optRemote"><input type="radio" name="src" value="remote"><div><b>Follow another Coms Log</b><span>Show the log from another computer running Coms Log with &ldquo;Share on the network&rdquo; turned on (Settings &rarr; More). This window keeps float on top, see-through and your own look.</span></div></label>
+        <div id="srcPanel" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px"><b style="font-size:13px">On this network</b><button class="btn" id="srcScan">Search again</button></div>
+          <div id="srcFound"></div>
+          <div style="display:flex;gap:6px;margin-top:10px"><input class="in" id="srcAddr" placeholder="Not listed? Type its address, e.g. 192.168.1.20" style="flex:1"><button class="btn" id="srcGo">Connect</button></div>
+          <p class="note" id="srcMsg"></p>
+        </div>
+      </section>
       <section class="sec on" data-s="ch">
         <p class="note">Each channel is one input on an audio device: a USB interface, Dante Virtual Soundcard, a mic, anything this computer can record from. Talk on it and set the gate just above the noise floor (the white line).</p>
         <div id="chList"></div>
@@ -305,11 +325,11 @@ body:not(.desk) .desk-only{display:none!important}
         <div class="row"><div class="l"><b>Export</b><span>Time-stamped transcript for records or debriefs.</span></div><button class="btn" id="lgTxt">Text</button><button class="btn" id="lgCsv">CSV</button></div>
         <div class="row desk-only"><div class="l"><b>Log folder</b><span id="lgDir"></span></div><button class="btn" id="lgOpen">Open</button></div>
         <div class="row"><div class="l"><b>Keep logs for</b><span>days (0 = forever)</span></div><input class="in" id="lgKeep" type="number" min="0" max="3650" style="width:80px"></div>
-        <div class="row"><div class="l"><b>Clear the view</b><span>Saved logs are kept.</span></div><button class="btn danger" id="lgClear">Clear</button></div>
+        <div class="row local-src"><div class="l"><b>Clear the view</b><span>Saved logs are kept.</span></div><button class="btn danger" id="lgClear">Clear</button></div>
       </section>
       <section class="sec" data-s="net">
-        <div class="row"><div class="l"><b>Share on the network</b><span>Let phones and other computers on this network follow the log in a browser (read-only).</span></div><label class="sw"><input type="checkbox" id="nShare"><i></i></label></div>
-        <div id="nUrls" class="note"></div>
+        <div class="row local-src"><div class="l"><b>Share on the network</b><span>Let phones and other computers on this network follow the log in a browser (read-only).</span></div><label class="sw"><input type="checkbox" id="nShare"><i></i></label></div>
+        <div id="nUrls" class="note local-src"></div>
         <div class="row"><div class="l"><b>Check for updates</b><span id="updState">Looks on GitHub for a newer version at start-up and every few hours. Nothing is installed automatically.</span></div><button class="btn" id="updNow">Check now</button><label class="sw"><input type="checkbox" id="nUpd"><i></i></label></div>
         <div class="row"><div class="l"><b>About</b><span id="about"></span></div></div>
       </section>
@@ -344,6 +364,7 @@ try{ S.hidden = new Set(JSON.parse(localStorage.getItem("cl.hidden")||"[]")); }c
 /* ---------------- state ---------------- */
 async function loadState(){
   S.state = await api("/api/state");
+  document.body.classList.toggle("remote", S.state.source === "remote");
   applyLook(); paintChips(); paintComposer(); paintWin(); paintUpdate();
   if($("#sheet").classList.contains("open")) paintSettings();
 }
@@ -399,7 +420,7 @@ function paintChips(){
     const dots = mem.slice(0, 5).map(c => `<i style="--c:${esc(c.color)}"></i>`).join("") || `<i style="--c:#888"></i>`;
     return `<button class="chip grp ${S.filter==="g:"+g.id?"sel":""} ${talk?"talk":""}" data-id="g:${esc(g.id)}" style="--c:${esc(mem[0]?.color || "#fff")}" title="${esc(mem.map(c => c.name).join(", ") || "No channels yet")}"><span class="stack">${dots}</span>${esc(g.name)}${badge(n)}</button>`;
   }).join("");
-  const add = B.local && cs.length > 1 && !groups().length ? `<button class="chip add" data-add="1" title="Group channels to see them together">+ Group</button>` : "";
+  const add = B.local && S.state?.source !== "remote" && cs.length > 1 && !groups().length ? `<button class="chip add" data-add="1" title="Group channels to see them together">+ Group</button>` : "";
   el.innerHTML = all + gs + add + (gs || add ? `<span class="vsep"></span>` : "") + cs.map(c => {
     const lv = S.levels[c.id] || {};
     return `<button class="chip ${S.filter===c.id?"sel":""} ${lv.speaking?"talk":""} ${lv.error?"err":""} ${S.hidden.has(c.id)?"muted":""}" data-id="${esc(c.id)}" style="--c:${esc(c.color)}" title="${esc(lv.error || (S.hidden.has(c.id) ? "Hidden from All (right-click to show)" : "Right-click to hide from All"))}"><span class="cd"></span>${esc(c.name)}${badge(S.unread[c.id])}</button>`;
@@ -446,8 +467,8 @@ function paintFeed(force){
   const el = $("#feed"); const q = $("#q").value.trim();
   const list = visible();
   if(!list.length && !ghosts().length){
-    const none = !chans().length;
-    el.innerHTML = `<div class="empty">${none && B.local ? `<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".7"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg><b>Add your first channel</b>Pick an input (talkback, PL, a mic) and Coms Log writes down what's said, with who and when.<br><br><button class="btn pri" onclick="openSettings('ch')">Add a channel</button>`
+    const none = !chans().length && S.state?.source !== "remote";
+    el.innerHTML = `<div class="empty">${none && B.local ? `<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".7"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg><b>Add your first channel</b>Pick an input (talkback, PL, a mic) and Coms Log writes down what's said, with who and when.<br><br><button class="btn pri" onclick="openSettings('ch')">Add a channel</button> <button class="btn" onclick="openSettings('src')">Follow another Coms Log</button>`
       : q ? `<b>No matches</b>${S.searchAll ? "Nothing in the saved days." : "Try “All days” to search saved logs."}` : engineEmpty()}</div>`;
     return;
   }
@@ -524,7 +545,8 @@ function paintEngine(e){
   if(was !== e.state && !S.items.length) paintFeed(false);
   const fn = $("#footNote"); if(fn) fn.textContent = e.error ? "Speech engine: " + e.error : e.state === "ready" ? (S.items.length ? `${S.items.length} lines so far · close to see them` : "Speech engine ready") : e.state; const d = $("#engDot"), t = $("#engTxt");
   d.className = "dot " + (e.error || e.state === "error" ? "err" : e.state === "ready" ? (e.busy || e.backlog ? "busy" : "ok") : "busy");
-  const msg = e.error || (e.state === "ready" ? (e.backlog > 1 ? `catching up · ${e.backlog}` : "") : e.state);
+  const rm = S.state?.source === "remote" ? (S.state.remote?.name || "shared Coms Log") : null;
+  const msg = e.error || (e.state === "ready" ? (e.backlog > 1 ? `catching up · ${e.backlog}` : rm ? `following ${rm}` : "") : e.state);
   t.textContent = msg.length > 60 ? msg.slice(0, 58) + "…" : msg; d.title = e.error || e.state;
   const sp = $("#spState"); if(sp) sp.textContent = `${e.model || "-"} · ${e.error || e.state}${e.dropped ? ` · ${e.dropped} skipped (computer fell behind)` : ""}`;
 }
@@ -574,6 +596,8 @@ async function openSettings(tab, toGroups){
   draft.groups = draft.groups || [];
   $("#sheet").classList.add("open");
   if(tab) selTab(tab);
+  else if(S.state.source === "remote" && ["ch", "sp"].includes($(".tab.on")?.dataset.s)) selTab("src");
+  paintSource();
   if(toGroups){ if(!draft.groups.length) newGroup(); setTimeout(() => $("#grpHead").scrollIntoView({behavior:"smooth", block:"start"}), 50); }
   paintSettings(); loadDevices(); loadDays();
 }
@@ -664,6 +688,50 @@ function paintChannels(){
   </div>`).join("") || `<p class="note">No channels yet.</p>`;
   paintGroups();
 }
+/* ---------------- source: this computer, or follow a shared Coms Log ---------------- */
+let found = [], scanning = false;
+function paintSource(){
+  const rem = S.state?.source === "remote";
+  const want = document.querySelector('input[name=src]:checked')?.value || (rem ? "remote" : "local");
+  $$('input[name=src]').forEach(i => i.checked = i.value === want);
+  $("#optLocal").classList.toggle("on", want === "local"); $("#optRemote").classList.toggle("on", want === "remote");
+  $("#srcPanel").style.display = want === "remote" ? "" : "none";
+  const cur = rem ? S.state.remote?.url : null;
+  const list = found.filter(f => !f.self);
+  $("#srcFound").innerHTML = (cur && !list.some(f => f.url === cur) ? `<div class="found cur"><div class="l"><b>${esc(S.state.remote.name || cur)}</b><span>${esc(cur.replace(/^http:\/\/|\/$/g, ""))} · ${S.state.remote.ok ? "connected" : "can't reach it right now"}</span></div><button class="btn danger" data-stop="1">Stop</button></div>` : "")
+    + list.map(f => `<div class="found ${f.url === cur ? "cur" : ""}"><div class="l"><b>${esc(f.name)}</b><span>${esc(f.ip)} · ${f.channels} channel${f.channels === 1 ? "" : "s"}${f.version ? " · v" + esc(f.version) : ""}</span></div>${f.url === cur ? `<button class="btn danger" data-stop="1">Stop</button>` : `<button class="btn pri" data-url="${esc(f.url)}" data-name="${esc(f.name)}">Connect</button>`}</div>`).join("")
+    || (scanning ? `<p class="note">Looking…</p>` : `<p class="note">No shared Coms Log found. On the other computer, turn on Settings &rarr; More &rarr; Share on the network (both computers need to be on the same network), then Search again.</p>`);
+}
+async function scan(){
+  scanning = true; paintSource();
+  try{ found = (await api("/api/discover", {})).found || []; }catch(e){ found = []; }
+  scanning = false; paintSource();
+}
+async function connectTo(url, name){
+  $("#srcMsg").textContent = "Connecting…";
+  const p = await api("/api/probe", {url}).catch(e => ({ok:false, error:e.message}));
+  if(!p.ok){ $("#srcMsg").textContent = p.error; return; }
+  await save({source:"remote", remote_url:p.url, remote_name:name || p.name}, true);
+  $("#srcMsg").textContent = ""; toast(`Following ${name || p.name}`);
+  setTimeout(() => location.reload(), 400);
+}
+$$('input[name=src]').forEach(i => i.onchange = async () => {
+  paintSource();
+  if(i.value === "remote" && i.checked && !found.length) scan();
+  if(i.value === "local" && i.checked && S.state.source === "remote"){
+    await save({source:"local"}, true); toast("Listening on this computer"); setTimeout(() => location.reload(), 400);
+  }
+});
+$("#srcScan").onclick = scan;
+$("#srcFound").onclick = e => {
+  const b = e.target.closest("button"); if(!b) return;
+  if(b.dataset.stop){ save({source:"local"}, true).then(() => { toast("Stopped following"); setTimeout(() => location.reload(), 400); }); return; }
+  connectTo(b.dataset.url, b.dataset.name);
+};
+$("#srcGo").onclick = () => { const v = $("#srcAddr").value.trim(); if(v) connectTo(v, ""); };
+$("#srcAddr").addEventListener("keydown", e => { if(e.key === "Enter") $("#srcGo").click(); });
+$$(".tab").forEach(t => t.addEventListener("click", () => { if(t.dataset.s === "src" && S.state?.source === "remote" && !found.length && !scanning) scan(); }));
+
 function paintGroups(){
   if(!draft) return;
   const cs = draft.channels.filter(c => c.id);

@@ -19,6 +19,9 @@ Made for church production teams. Free and open source (MIT).
 - **Search** the live view or every saved day. **Export** any day as text or CSV.
 - **Share on the network** (optional): phones and other computers on the same network can follow the log
   read-only in a browser.
+- **Follow another Coms Log**: install Coms Log on a second computer and pick Settings → Source →
+  Follow another Coms Log. Computers that are sharing show up by name (no IP to type), and the window still
+  floats on top and goes see-through. Discovery uses UDP port 8769; the log itself uses TCP 8770.
 - Logs are saved per day and kept for 30 days by default.
 
 ## Download
